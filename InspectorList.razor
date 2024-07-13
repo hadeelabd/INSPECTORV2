@@ -1,0 +1,106 @@
+﻿@page "/inspectors"
+@rendermode InteractiveServer
+@inject IDialogService DialogService
+@inject IInspectorService InspectorService
+@using INSPECTORV2.Domain.Entities
+@using InspectorServicesInterfaces
+
+<h3>Inspectors</h3>
+
+<div style="float:inline-end">
+    <FluentButton Appearance="Appearance.Accent" @onclick="ShowAddModal">Add New Inspector</FluentButton>
+</div>
+
+<br />
+
+@if (inspectors == null)
+{
+    <span>Loading...</span>
+}
+else
+{
+
+    <FluentDataGrid Items="@inspectors"
+                    GenerateHeader="GenerateHeaderOption.Sticky"
+                    ResizableColumns=true Pagination="@pagination"
+                    Style="width: 100%; height: 500px;overflow:auto;">
+
+        <PropertyColumn Property="@(p=>p.Name)" Sortable="true" />
+        <PropertyColumn Property="@(p=>p.Phone)" Sortable="true" />
+        <PropertyColumn Property="@(p=>p.Email)" Sortable="true" />
+        <PropertyColumn Property="@(p=>p.Address)" Sortable="true" />
+        <PropertyColumn Property="@(p=>p.Age)" Sortable="true" />
+        <PropertyColumn Property="@(p=>p.Speialiation)" Sortable="true" />
+        <TemplateColumn Title="Actions" Align="@Align.End">
+            <FluentButton aria-label="Edit item" IconEnd="@(new Icons.Regular.Size16.Edit())" OnClick="@(() => OpenDialogAsync(context))" />
+            <FluentButton aria-label="Delete item" IconEnd="@(new Icons.Regular.Size16.Delete())" OnClick="@(() => DeleteInspector(context))" />
+        </TemplateColumn>
+
+    </FluentDataGrid>
+
+    <FluentPaginator State="@pagination" />
+
+
+}
+
+
+
+@code {
+
+    private IQueryable<Inspector>? inspectors;
+
+    private AddEditInspectorDialog ? addEditInspectorDialog;
+
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInspectors();
+    }
+
+    private async Task LoadInspectors()
+    {
+
+        inspectors = (await InspectorService.GetAll()).AsQueryable();
+        StateHasChanged();
+    }
+
+    private async Task OpenDialogAsync(Inspector inspector)
+    {
+        DialogParameters parameters = new DialogParameters()
+            {
+                Title = ((inspector.Id == 0) ? "Add Inspector" : "Edit Inspector"),
+                PrimaryAction = "Yes",
+                PrimaryActionEnabled = false,
+                SecondaryAction = "No",
+                Width = "2000px",
+                TrapFocus = true,
+                Modal = true,
+                PreventScroll = true
+            };
+        var dialog = await DialogService.ShowDialogAsync<AddEditInspectorDialog>(inspector, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled && result.Data != null)
+        {
+            inspector = (Inspector)result.Data;
+            await LoadInspectors();
+        }
+
+
+    }
+    private async Task ShowAddModal()
+    {
+        await OpenDialogAsync(new Inspector());
+    }
+
+    private async void DeleteInspector(Inspector inspector)
+    {
+        await InspectorService.Delete(inspector);
+        await LoadInspectors();
+    }
+
+    private async void RefreshList()
+    {
+        await LoadInspectors();
+    }
+}
